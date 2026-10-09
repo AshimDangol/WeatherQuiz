@@ -20,6 +20,7 @@ public class GameEngine {
 
 	int counter = 0;
 	int score = 0;
+	int tries = 0;
 	GameServer theGames = new GameServer();
 	Game current = null;
 
@@ -27,7 +28,14 @@ public class GameEngine {
 	 * Retrieves a game. This basic version only has two games that alternate.
 	 */
 	public BufferedImage nextGame() {
-		current = theGames.getRandomGame();
+		Game g = theGames.getRandomGame();
+		if (g != null) {
+			current = g;
+			counter++;
+		}
+		if (current == null) {
+			return null;
+		}
 		return current.getImage();
 
 	}
@@ -41,6 +49,10 @@ public class GameEngine {
 	 * @return
 	 */
 	public boolean checkSolution( int i) {
+		tries++;
+		if (current == null) {
+			return false;
+		}
 		if (i == current.getSolution()) {
 			score++;
 			return true;
@@ -57,6 +69,14 @@ public class GameEngine {
 	 */
 	public int getScore() {
 		return score;
+	}
+
+	public int getTries() {
+		return tries;
+	}
+
+	public String getPlayer() {
+		return thePlayer;
 	}
 
 }

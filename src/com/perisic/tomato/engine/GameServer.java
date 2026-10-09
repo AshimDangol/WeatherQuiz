@@ -5,8 +5,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.Base64;
 
 import javax.imageio.ImageIO;
@@ -20,6 +20,8 @@ import javax.imageio.ImageIO;
  */
 public class GameServer {
 
+	int offlineCount = 0;
+
 	/**
 	 * Basic utility method to read string for URL.
 	 */
@@ -27,7 +29,10 @@ public class GameServer {
 	private static String readUrl(String urlString)  {
 		try {
 			URL url = new URL(urlString);
-			InputStream inputStream = url.openStream();
+			URLConnection conn = url.openConnection();
+			conn.setConnectTimeout(6000);
+			conn.setReadTimeout(6000);
+			InputStream inputStream = conn.getInputStream();
 
 			// Choose anyone of
 			// https://stackoverflow.com/questions/309424/how-do-i-read-convert-an-inputstream-into-a-string-in-java
@@ -50,6 +55,7 @@ public class GameServer {
 
 	/**
 	 * Retrieves a random game from the web site.
+	 * Falls back to a local image if the api is down so the game still runs.
 	 * @return a random game or null if a game cannot be found. 
 	 */
 	public Game getRandomGame() {
@@ -57,20 +63,38 @@ public class GameServer {
 		
 		String tomatoapi = "https://marcconrad.com/uob/tomato/api.php?out=csv&base64=yes";
 		String dataraw = readUrl(tomatoapi);
-		String[] data = dataraw.split(",");
-
-		byte[] decodeImg = Base64.getDecoder().decode(data[0]);
-		ByteArrayInputStream quest = new ByteArrayInputStream(decodeImg);
-
-		int solution = Integer.parseInt(data[1]);
-
-		BufferedImage img = null;
+		if (dataraw == null || !dataraw.contains(",")) {
+			System.out.println("api down, using offline image");
+			return getOfflineGame();
+		}
 		try {
-			img = ImageIO.read(quest);
+			String[] data = dataraw.trim().split(",");
+			byte[] decodeImg = Base64.getDecoder().decode(data[0].trim());
+			ByteArrayInputStream quest = new ByteArrayInputStream(decodeImg);
+			int solution = Integer.parseInt(data[1].trim());
+			BufferedImage img = ImageIO.read(quest);
+			if (img == null) {
+				return getOfflineGame();
+			}
 			return new Game(img, solution);
-		} catch (IOException e1) {
-			// TODO Add proper exception handling. 
-			e1.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("bad api data: " + e.getMessage());
+			return getOfflineGame();
+		}
+	}
+
+	Game getOfflineGame() {
+		try {
+			String name = "/tomato1.png";
+			if (offlineCount++ % 2 == 1) {
+				name = "/tomato2.png";
+			}
+			InputStream in = GameServer.class.getResourceAsStream(name);
+			BufferedImage img = ImageIO.read(in);
+			// offline copies both have solution 1, same as basic example
+			return new Game(img, 1);
+		} catch (Exception e) {
+			e.printStackTrace();
 			return null;
 		}
 	}
