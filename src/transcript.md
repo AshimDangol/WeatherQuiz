@@ -1,14 +1,14 @@
-# Video transcript - CIS046-3 (~9 mins) - Weather Quiz
+# Video transcript - CIS046-3 (~9 mins) - Weather Quiz + Banana
 
-Hi, I'm [name], this is my weather quiz for CIS046-3. I'll demo it first, then go through version control, events, interop and identity.
+Hi, I'm [name], this is my weather quiz with banana round for CIS046-3. I'll demo it first, then go through version control, events, interop and identity.
 
 ## demo (0:00-1:20)
 
 I run src/run.bat. It builds with javac and starts QuizLoginGUI. Default account is Ada / hello23. Wrong password gets rejected. I can sign up too.
 
-Once I'm in, QuizGUI picks two cities, say Luton and Leeds, and asks which is hotter right now. Temps are live from Open-Meteo. I click a city name. Right ups my score. Wrong shows both temps. Mode dropdown switches to Over / Under 12C. Then I answer Over or Under for the shown city. Each question has 15 seconds. Time up counts as a miss and loads the next one. Logout clears the session.
+Once I'm in, QuizGUI has three modes in the dropdown. Which hotter picks two cities, say Luton and Leeds, live from Open-Meteo. Over / Under asks about 12C. Banana puzzle shows a banana image from the banana API and I pick 0-9. Each has a countdown, 15s for weather, 20s for banana. Time up counts as a miss. Logout clears the session.
 
-If the API is down it still runs. It uses canned temps and marks (offline) in the info box. I'll show that code later.
+If an API is down it still runs. Weather uses canned temps, banana uses banana1.png. Both mark (offline). I'll show that code later.
 
 My old tomato game is still in com.perisic.tomato for reference, but this quiz in com.weatherquiz is my submission.
 
@@ -26,23 +26,25 @@ Other way would be one main branch with big commits. Harder to revert. Branches 
 
 All GUI, no loop.
 
-Buttons are ActionEvents. QuizGUI implements ActionListener. actionPerformed reads getActionCommand. A, B, over, under, logout. Answer buttons call quiz.checkAnswer or checkOverUnder, update score label, show temps, then start a one-shot timer to load the next question so you can read the result.
+Buttons are ActionEvents. QuizGUI implements ActionListener. actionPerformed reads getActionCommand. A, B, over, under, num0-num9, logout. Weather answers call quiz.checkAnswer or checkOverUnder, banana answers call checkBanana. Then update score label, show temps or banana answer, then a one-shot timer loads the next question so you can read the result.
 
-Dropdown is an ItemEvent. modeBox has Which hotter? and Over / Under 12C. ItemListener fires on SELECTED and calls newQuestion. It also enables the right buttons. Good demo of a different event source using the same state.
+Dropdown is an ItemEvent. modeBox has Which hotter?, Over / Under 12C, Banana puzzle. ItemListener fires on SELECTED and calls newQuestion. It also enables the right buttons and shows or hides the banana image. Good demo of a different event source using the same state.
 
-Timers are the third source. countTimer is a Swing Timer firing every second. It drops `left` from 15 and updates timerLabel. On zero it calls checkAnswer(-1) which is always wrong, updates score, shows temps. A second one-shot Timer of 1800ms pauses before the next question.
+Timers are the third source. countTimer is a Swing Timer firing every second. It drops `left` from 15 (weather) or 20 (banana) and updates timerLabel. On zero it logs a miss and shows the answer. A second one-shot Timer of 1800ms pauses before the next question.
 
 I kept Swing timers so code runs on the event dispatch thread, safe for labels. Fetch runs on the EDT too, freezes a touch if net is slow. Better would be SwingWorker in background. I left it sync to stay simple, I'd note that as next step.
 
 ## 3. interoperability (5:10-7:10)
 
-Quiz doesn't measure weather. It calls https://api.open-meteo.com/v1/forecast with lat, lon and current=temperature_2m.
+Quiz uses two outside APIs. Weather is https://api.open-meteo.com/v1/forecast with lat, lon and current=temperature_2m.
 
 That's GET over HTTPS, returns JSON. Example: current_units then current with temperature_2m 12.9. I read it with URLConnection, 6 sec timeouts, then parse by hand. No lib. I search lastIndexOf temperature_2m and read the number after it. I use last because the first hit is the units string.
 
-Why hand parse? No maven here, plain javac. Adding Jackson would be nicer but more setup. Manual works for one field. Breaks if they rename fields. My fallback covers that. If read fails or parse fails, getTempOrFallback returns canned temps and sets offline flag shown in UI.
+Banana round is https://marcconrad.com/uob/banana/api.php?out=csv&base64=yes. That's CSV, base64 image plus int solution after the last comma. I decode Base64 and use ImageIO.read, same as the tomato example. So one app shows JSON numbers and CSV images side by side.
 
-Compare to tomato: that API is CSV + Base64 image, out=csv&base64=yes. Two styles. JSON is typed and self-describing, better for numbers. CSV was smaller for that game but fragile on commas. I can talk to both in code, good contrast. Both are distributed, my Swing client and their servers, different stacks, only HTTP + text agreed.
+Why hand parse JSON? No maven here, plain javac. Adding Jackson would be nicer but more setup. Manual works for one field. Breaks if they rename fields. Fallbacks cover that. Weather falls back to canned temps, banana falls back to banana1.png bundled in src. Both set an offline flag shown in UI.
+
+JSON is typed and self-describing, better for numbers. CSV was smaller for images but fragile on commas. Both are distributed, my Swing client and their servers, different stacks, only HTTP + text agreed.
 
 ## 4. virtual identity (7:10-9:00)
 
@@ -58,4 +60,4 @@ Tradeoffs. SHA-256 once is better than plain but weak vs bcrypt or Argon2 which 
 
 That's it. Run src/run.bat, Java 17. Git log shows steps. Refs in comments and README. Thanks.
 
-Refs: TomatoFull example (Marc Conrad), Open-Meteo docs, stackoverflow JSON and JPasswordField threads, login-form blog.
+Refs: TomatoFull example (Marc Conrad), Banana API docs, Open-Meteo docs, stackoverflow JSON and JPasswordField threads, login-form blog.
