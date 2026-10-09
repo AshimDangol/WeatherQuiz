@@ -83,7 +83,7 @@ public class GameServer {
 		}
 	}
 
-	Game getOfflineGame() {
+	public Game getOfflineGame() {
 		try {
 			String name = "/tomato1.png";
 			if (offlineCount++ % 2 == 1) {

@@ -119,7 +119,11 @@ public class LoginData {
 		return true;
 	}
 
-	boolean checkPassword(String username, String passwd) {
+	public boolean checkPassword(String username, String passwd) {
+		return checkLogin(username, passwd);
+	}
+
+	public boolean checkLogin(String username, String passwd) {
 		if (username == null || passwd == null) {
 			return false;
 		}
