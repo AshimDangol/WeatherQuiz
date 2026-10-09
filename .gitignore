@@ -1,0 +1,6 @@
+.agent_workspace/
+*.class
+/bin/
+/out/
+users.txt
+session.cookie
