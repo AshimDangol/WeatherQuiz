@@ -2,6 +2,8 @@ package com.perisic.tomato.peripherals;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 
 import javax.swing.*;
@@ -24,18 +26,34 @@ public class GameGUI extends JFrame implements ActionListener {
 	 */
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		int solution = Integer.parseInt(e.getActionCommand());
+		String cmd = e.getActionCommand();
+		if (cmd.equals("logout")) {
+			new LoginData().clearSession();
+			LoginGUI login = new LoginGUI();
+			login.setVisible(true);
+			dispose();
+			return;
+		}
+		int solution = Integer.parseInt(cmd);
+		checkAnswer(solution);
+	}
+
+	void checkAnswer(int solution) {
 		boolean correct = myGame.checkSolution(solution);
-		int score = myGame.getScore(); 
+		int score = myGame.getScore();
 		if (correct) {
 			System.out.println("Correct solution entered!");
-			currentGame = myGame.nextGame(); 			
-			ImageIcon ii = new ImageIcon(currentGame);
-			questArea.setIcon(ii);
-			infoArea.setText("Good!  Score: "+score);
-		} else { 
-			System.out.println("Not Correct"); 
-			infoArea.setText("Oops. Try again!  Score: "+score);
+			currentGame = myGame.nextGame();
+			if (currentGame != null) {
+				ImageIcon ii = new ImageIcon(currentGame);
+				questArea.setIcon(ii);
+			}
+			infoArea.setText("Good " + myGame.getPlayer() + "!  Score: " + score
+					+ " tries: " + myGame.getTries());
+		} else {
+			System.out.println("Not Correct");
+			infoArea.setText("Oops. Try again!  Score: " + score
+					+ " tries: " + myGame.getTries());
 		}
 	}
 
@@ -43,18 +61,28 @@ public class GameGUI extends JFrame implements ActionListener {
 	GameEngine myGame = null;
 	BufferedImage currentGame = null;
 	JTextArea infoArea = null;
+	JLabel topLabel = null;
+	int seconds = 0;
 /**
  * Initializes the game. 
  * @param player
  */
 	private void initGame(String player) {
-		setSize(690, 500);
+		setSize(700, 560);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setTitle("What is the missing value?");
+		setTitle("What is the missing value? - " + player);
 		JPanel panel = new JPanel();
 
 		myGame = new GameEngine(player);
 		currentGame = myGame.nextGame();
+
+		topLabel = new JLabel("player: " + player + "  0s");
+		panel.add(topLabel);
+
+		JButton logout = new JButton("logout");
+		logout.setActionCommand("logout");
+		logout.addActionListener(this);
+		panel.add(logout);
 
 		infoArea = new JTextArea(1, 40);
 		
@@ -79,6 +107,26 @@ public class GameGUI extends JFrame implements ActionListener {
 
 		getContentPane().add(panel);
 		panel.repaint();
+
+		// keyboard 0-9 also answers, handy for demo
+		addKeyListener(new KeyAdapter() {
+			public void keyPressed(KeyEvent k) {
+				char c = k.getKeyChar();
+				if (c >= '0' && c <= '9') {
+					checkAnswer(c - '0');
+				}
+			}
+		});
+		setFocusable(true);
+
+		// simple timer event, updates label each second
+		Timer timer = new Timer(1000, new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				seconds++;
+				topLabel.setText("player: " + myGame.getPlayer() + "  " + seconds + "s");
+			}
+		});
+		timer.start();
 
 	}
 /**
