@@ -1,63 +1,65 @@
-# Video transcript - CIS046-3 (~9 mins) - Weather Quiz + Banana
+# Video transcript - CIS046-3 (~10 mins) - Banana Quiz + Weather
 
-Hi, I'm [name], this is my weather quiz with banana round for CIS046-3. I'll demo it first, then go through version control, events, interop and identity.
+Hi, I'm [name]. This is my Banana quiz with weather modes. Login is Ada / hello23.
 
-## demo (0:00-1:20)
+## 0:00-1:00 demo
 
-I run src/run.bat. It builds with javac and starts QuizLoginGUI. Default account is Ada / hello23. Wrong password gets rejected. I can sign up too.
+I run run.bat from the repo root. It builds and opens the login. Wrong
+password is rejected. Signup makes a hashed user. Session file skips
+login next time until it expires. Logout clears it.
 
-Once I'm in, QuizGUI has three modes in the dropdown. Which hotter picks two cities, say Luton and Leeds, live from Open-Meteo. Over / Under asks about 12C. Banana puzzle shows a banana image from the banana API and I pick 0-9. Each has a countdown, 15s for weather, 20s for banana. Time up counts as a miss. Logout clears the session.
+Menu has Play banana quiz, 2 player hotseat, Leaderboard, Settings.
+Banana mode shows a live banana image, I pick 0-9. Weather modes ask
+which city is hotter or over/under a random line. 15-20s timer each.
+Hotseat alternates two players for 5 rounds. Leaderboard: I see my own
+scores, Ada the admin sees all. Settings change seconds and start mode.
 
-If an API is down it still runs. Weather uses canned temps, banana uses banana1.png. Both mark (offline). I'll show that code later.
+## 1:00-2:00 architecture + interop
 
-My old tomato game is still in com.perisic.tomato for reference, but this quiz in com.weatherquiz is my submission.
+Swing GUI, engine classes, two APIs over HTTPS, local files. Diagram
+in src/docs/architecture.md. Banana request is
+api.php?out=csv&base64=yes, reply is base64 image plus int after the
+last comma, decoded and shown with ImageIO. Weather is Open-Meteo
+JSON, parsed by hand with lastIndexOf since the first match is the
+units string. Both have 6s timeouts and offline fallback, banana1.png
+and canned temps, tagged offline. Real samples in src/docs/evidence.md.
 
-## 1. version control (1:20-3:20)
+## 2:00-3:45 version control
 
-All in git. Started from TomatoFull on master. Then branches.
+Git from day 1, GitHub WeatherQuiz. Branches auth-hashing,
+interop-fix, gui-events, weather-quiz, banana-api, menu-board-mp,
+fix-overunder, tidy-gui, guide-align. Small commits, merges to master,
+tags v0.1 to v0.3. Engine vs peripherals split kept merges clean.
+Team version would use pull requests and review, I self-reviewed diffs.
 
-auth-hashing for SHA-256 login and sessions. interop-fix for tomato timeouts. gui-events for logout and keys. weather-quiz for this whole quiz, biggest branch. Each branch had small commits. Merged back to master, tagged v0.1-week8-demo for the tutor show.
+## 3:45-5:30 events
 
-Code is split engine vs peripherals. weatherquiz.engine has WeatherServer and QuizEngine. peripherals has QuizGUI and QuizLoginGUI. Auth class LoginData is reused from the tomato package, no copy paste. That kept merges clean. I only touched new files on this branch, so no conflicts.
+Buttons are ActionEvents in one actionPerformed: answers, skip, save,
+menu, logout. Dropdown is an ItemEvent switching cards in a CardLayout.
+Timers are Swing Timers each second plus a one-shot pause before the
+next question. All on the event thread. Fetch on the thread freezes a
+touch, SwingWorker would be next.
 
-Other way would be one main branch with big commits. Harder to revert. Branches plus tag felt safer. In a team I'd want pull requests and review. Here I did git diff before each merge myself.
+## 5:30-7:15 identity
 
-## 2. event-driven programming (3:20-5:10)
+SHA-256 plus per-user salt in users.txt, never plain. Session file
+with UUID and 30min expiry like a cookie. Roles: Ada is admin, signups
+are user, column added to the file with old files defaulting to user.
+Board filters by role, and role is never taken from a form. SHA-256
+once is weak vs bcrypt, file perms are default, real app wants a DB.
 
-All GUI, no loop.
+## 7:15-9:15 evaluation
 
-Buttons are ActionEvents. QuizGUI implements ActionListener. actionPerformed reads getActionCommand. A, B, over, under, num0-num9, logout. Weather answers call quiz.checkAnswer or checkOverUnder, banana answers call checkBanana. Then update score label, show temps or banana answer, then a one-shot timer loads the next question so you can read the result.
+Banana CSV was picked for one-fetch images, JSON for typed weather
+numbers. Hand JSON parse avoids a lib but breaks on renames, fallback
+covers it. Hotseat multiplayer instead of network keeps zero setup but
+no remote play. File sessions are simple but stealable, expiry limits
+it. If more time: background fetch, bcrypt, DB, more admin pages.
 
-Dropdown is an ItemEvent. modeBox has Which hotter?, Over / Under 12C, Banana puzzle. ItemListener fires on SELECTED and calls newQuestion. It also enables the right buttons and shows or hides the banana image. Good demo of a different event source using the same state.
+## 9:15-10:00 close
 
-Timers are the third source. countTimer is a Swing Timer firing every second. It drops `left` from 15 (weather) or 20 (banana) and updates timerLabel. On zero it logs a miss and shows the answer. A second one-shot Timer of 1800ms pauses before the next question.
+Runs from run.bat, Java 17. Git history shows steps. Refs in comments
+and README. Thanks.
 
-I kept Swing timers so code runs on the event dispatch thread, safe for labels. Fetch runs on the EDT too, freezes a touch if net is slow. Better would be SwingWorker in background. I left it sync to stay simple, I'd note that as next step.
-
-## 3. interoperability (5:10-7:10)
-
-Quiz uses two outside APIs. Weather is https://api.open-meteo.com/v1/forecast with lat, lon and current=temperature_2m.
-
-That's GET over HTTPS, returns JSON. Example: current_units then current with temperature_2m 12.9. I read it with URLConnection, 6 sec timeouts, then parse by hand. No lib. I search lastIndexOf temperature_2m and read the number after it. I use last because the first hit is the units string.
-
-Banana round is https://marcconrad.com/uob/banana/api.php?out=csv&base64=yes. That's CSV, base64 image plus int solution after the last comma. I decode Base64 and use ImageIO.read, same as the tomato example. So one app shows JSON numbers and CSV images side by side.
-
-Why hand parse JSON? No maven here, plain javac. Adding Jackson would be nicer but more setup. Manual works for one field. Breaks if they rename fields. Fallbacks cover that. Weather falls back to canned temps, banana falls back to banana1.png bundled in src. Both set an offline flag shown in UI.
-
-JSON is typed and self-describing, better for numbers. CSV was smaller for images but fragile on commas. Both are distributed, my Swing client and their servers, different stacks, only HTTP + text agreed.
-
-## 4. virtual identity (7:10-9:00)
-
-Same LoginData as before. addUser makes 16-byte salt with SecureRandom, hashes with SHA-256, stores username:salt:hash in users.txt. checkLogin re-hashes. File never has passwords. I tested that.
-
-Sessions act like cookies. createSession makes UUID + user + expiry 30 mins, writes session.cookie. QuizLoginGUI checks it on start, skips login if valid. Logout deletes it.
-
-Desktop has no browser cookies, file does the same job. Expiry limits reuse if copied.
-
-Tradeoffs. SHA-256 once is better than plain but weak vs bcrypt or Argon2 which are slow. users.txt has no iterations, perms are default. Real app would use DB, TLS, server-side hash, maybe JWT. I kept files for zero setup. Shows the point: salt each user, don't store plain, expire.
-
-## close (9:00-9:30)
-
-That's it. Run src/run.bat, Java 17. Git log shows steps. Refs in comments and README. Thanks.
-
-Refs: TomatoFull example (Marc Conrad), Banana API docs, Open-Meteo docs, stackoverflow JSON and JPasswordField threads, login-form blog.
+Refs: TomatoFull example (Marc Conrad), Banana API docs, Open-Meteo
+docs, stackoverflow threads, login-form blog, unit slides.
